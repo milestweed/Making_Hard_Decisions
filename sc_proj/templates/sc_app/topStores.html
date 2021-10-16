@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+{% extends 'sc_app/base_fw.html' %}
+
+{% block head_block %}
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+{% endblock %}
+
+{% block body_block %}
+<div class="position-relative overflow-hidden p-3 p-md-5 m-md-3 text-center bg-light">
+  <div class="col-md-5 p-lg-8 mx-auto my-5">
+    <h1 class="display-6 fw-normal">Optimal Stores To Close</h1>
+    <p class="lead fw-normal">The following are the top 3 stores to close according to our model.</p>
+    <a class="btn btn-outline-secondary" href="{% url "sc_app:data"%}">Explore all stores</a>
+  </div>
+  <div class="product-device shadow-sm d-none d-md-block"></div>
+  <div class="product-device product-device-2 shadow-sm d-none d-md-block"></div>
+</div>
+<hr class="featurette-divider">
+<div class="position-relative d-md-block">
+<form method="POST">
+  {{ form }}
+  {% csrf_token %}
+  <input type="submit" class="btn btn-outline-secondary" value="Display Year">
+</form>
+</div>
+<hr class="featurette-divider">
+
+<div class="row featurette">
+  <div class="col-md-7">
+    <h2 class="featurette-heading">Optimal Store #1: <span class="text-muted">Target {{ store1 }}</span></h2>
+    <strong>Closing Target {{ store1 }} results in the following movement:</strong>
+    {% if tbl1 %}
+    <div class='table-reponsive'>
+      <table class="table table-striped">
+        <thead>
+          <th scope="col">Brand</th>
+          <th scope="col">Address</th>
+          <th scope="col">Square Footage</th>
+          <th scope="col">Additional Traffic</th>
+        </thead>
+        {% for row in tbl1 %}
+        <tr>
+          <td>{{ row.brand }}</td>
+          <td>{{ row.address }}</td>
+          <td>{{ row.sq_ft }}</td>
+          <td>{{ row.move }}</td>
+        </tr>
+      {% endfor %}
+      </table>
+      {% else %}
+        <p>Select a Store.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-5">
+    {{ store_plot1 | safe }}
+  </div>
+</div>
+
+<hr class="featurette-divider">
+
+<div class="row featurette">
+  <div class="col-md-7 order-md-2">
+    <h2 class="featurette-heading">Optimal Store #2: <span class="text-muted">Target {{ store2 }}</span></h2>
+    <strong>Closing Target {{ store2 }} results in the following movement:</strong>
+    {% if tbl2 %}
+    <div class='table-reponsive'>
+      <table class="table table-striped">
+        <thead>
+          <th scope="col">Brand</th>
+          <th scope="col">Address</th>
+          <th scope="col">Square Footage</th>
+          <th scope="col">Additional Traffic</th>
+        </thead>
+        {% for row in tbl2 %}
+        <tr>
+          <td>{{ row.brand }}</td>
+          <td>{{ row.address }}</td>
+          <td>{{ row.sq_ft }}</td>
+          <td>{{ row.move }}</td>
+        </tr>
+      {% endfor %}
+      </table>
+      {% else %}
+        <p>Select a Store.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-5 order-md-1">
+    {{ store_plot2 | safe }}
+  </div>
+</div>
+
+<hr class="featurette-divider">
+
+<div class="row featurette">
+  <div class="col-md-7">
+    <h2 class="featurette-heading">Optimal Store #3: <span class="text-muted"> Target {{ store3 }}</span></h2>
+    <strong>Closing Target {{ store3 }} results in the following movement:</strong>
+    {% if tbl3 %}
+    <div class='table-reponsive'>
+      <table class="table table-striped">
+        <thead>
+          <th scope="col">Brand</th>
+          <th scope="col">Address</th>
+          <th scope="col">Square Footage</th>
+          <th scope="col">Additional Traffic</th>
+        </thead>
+        {% for row in tbl3 %}
+        <tr>
+          <td>{{ row.brand }}</td>
+          <td>{{ row.address }}</td>
+          <td>{{ row.sq_ft }}</td>
+          <td>{{ row.move }}</td>
+        </tr>
+      {% endfor %}
+      </table>
+      {% else %}
+        <p>Select a Store.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-5">
+    {{ store_plot3 | safe }}
+  </div>
+</div>
+
+<hr class="featurette-divider">
+{% endblock %}

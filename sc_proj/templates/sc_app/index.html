@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+{% extends 'sc_app/base_fw.html' %}
+{% load static %}
+
+{% block head_block %}
+{% endblock %}
+
+
+{% block body_block %}
+<div id="banner">
+  <div class="position-relative overflow-hidden p-3 p-md-5 m-md-3 text-center bg-transparent">
+    <div id="heading" class="col-md-5 p-lg-8 mx-auto my-5">
+      <h1 class="display-6 fw-normal">Choosing a Target Location to Close</h1>
+      <p class="lead fw-normal">Reverse engineering a gravity model to predict optimally effective store closures.</p>
+      <a class="btn btn-outline-secondary" href="{% url "sc_app:data"%}">Explore the data</a>
+    </div>
+  </div>
+</div>
+<br>
+<div class='container-fluid'>
+  <div class="row">
+    <div class="col-2">
+      <div class="potition-fluid text-center">
+        <img class="mt-3 mb-3" src="{% static 'images/Target_Corporation_logo.png' %}" width='100px' height='100px'>
+        <img class="mt-3 mb-3" src="{% static 'images/SG_logo_tall.png' %}" width="100px" height="59px">
+      </div>
+    </div>
+    <div class="col-8">
+      <h2>The  Premise</h2>
+      <br>
+      <p>No business wishes to lose revenue to its competitors, so the decision can be extremely difficult if they are forced to close one of several locations due to downsizing or unforeseen circumstances, such as a global pandemic.  We endeavor to make this decision easier by developing a model that uses mobility and customer spending data to predict the impact of closing a particular store. Here, we take the perspective of the Target Corporation with a focus on the New York metropolitan area.  Our model, which is a variation of the Huff Gravity model, will predict the customer behavior and loss of revenue that results from closing a particular store.  We consider the historical patronage data from SafeGraph for the Target stores as well as a collection of Target's competitors in the area and we combine this with demographic data from each specific census block group (CBG) to make this prediction as accurately as possible. Through this analysis, we seek to give decision makers the tool they need to make the choice easier when closing a location. </p>
+    </div>
+    <div class="col-2">
+    </div>
+  </div>
+</div>
+{% endblock %}

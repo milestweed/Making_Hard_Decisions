@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+{% extends 'sc_app/base.html' %}
+
+{% block head_block %}
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+{% endblock %}
+
+{% block sidebar_block %}
+
+<h1>Close a Store:</h1>
+<form method="POST">
+  {{ form.as_p }}
+  {% csrf_token %}
+  <input type="submit" class="btn btn-primary" value="Submit">
+</form>
+
+{% endblock %}
+
+{% block body_block %}
+<div class='row md-12'>
+    {{ store_plot|safe }}
+</div>
+<div class='row md-12'>
+  {% if store_bar %}
+    {{ store_bar|safe }}
+  {% else %}
+  {% endif %}
+</div>
+<div class='row md-12'>
+    {{ choro_plot|safe }}
+</div>
+<div class='row md-12'>
+  {% if cbg_bar %}
+    {{ cbg_bar|safe }}
+  {% else %}
+  {% endif %}
+</div>
+
+
+<hr class="featurette-divider">
+<h4>Top 5 Benefactors</h4>
+  {% if tbl %}
+  <div class='table-reponsive'>
+    <table class="table table-striped">
+      <thead>
+        <th scope="col">Brand</th>
+        <th scope="col">Category</th>
+        <th scope="col">Address</th>
+        <th scope="col">Square Footage</th>
+        <th scope="col">Additional Traffic</th>
+      </thead>
+      {% for row in tbl %}
+      <tr>
+        <td>{{ row.brand }}</td>
+        <td>{{ row.category }}</td>
+        <td>{{ row.address }}</td>
+        <td>{{ row.sq_ft }}</td>
+        <td>{{ row.move }}</td>
+      </tr>
+    {% endfor %}
+    </table>
+    {% else %}
+      <p>Select a Store.</p>
+    {% endif %}
+  </div>
+{% endblock %}

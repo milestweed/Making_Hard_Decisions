@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+{% extends 'sc_app/base_fw.html' %}
+{% load static %}
+
+{% block body_block %}
+
+<div class="container">
+  <object data="{% static "pdf/IEEE_Store_Closing_decision.pdf" %}" type="application/pdf" width="100%" height="1000px">
+    <p>Paper - <a href="{% static "pdf/IEEE_Store_Closing_decision.pdf" %}"></a></p>
+  </object>
+</div>
+
+
+{% endblock %}
