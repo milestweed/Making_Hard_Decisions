@@ -2,3 +2,5 @@
 sc_proj/sc_proj/config.py
 
 sc_proj/db.sqlite3
+
+sc_proj/pop_data.py
