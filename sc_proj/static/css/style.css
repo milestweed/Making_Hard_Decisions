@@ -17,3 +17,9 @@
   padding-top: 50px;
   padding-bottom: 50px;
 }
+
+p {
+  text-indent: 50px;
+  margin-left: 20px;
+  margin-right: 20px;
+}

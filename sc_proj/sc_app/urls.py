@@ -7,7 +7,5 @@ app_name = 'sc_app'
 urlpatterns = [
     path('data/', views.data, name='data'),
     path('paper/', views.paper, name='paper'),
-    path('people/', views.people, name='people'),
-    path('topStores/', views.topStores, name='top'),
-    path('test/', views.test, name='test')
+    path('people/', views.people, name='people')
 ]

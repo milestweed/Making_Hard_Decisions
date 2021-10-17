@@ -45,298 +45,298 @@ def index(request):
 
 
 
-###############################
-##     TOPSTORES VIEW        ##
-###############################
-
-
-def topStores(request):
-    form = forms.YearSelect()
-
-    ###############################
-    ##    Generate base plot     ##
-    ###############################
-    mapbox_access_token = get_mb_token()
-    MB_style = 'mapbox://styles/mapbox/streets-v11'
-    plot_divs = []
-    table_dicts = []
-
-    for store in ['T07','T06','T11']:
-        year = 2018
-        store = Closed.objects.filter(name=store)
-        store_name = [str(x.name) for x in store][0]
-        store = [str(x.id) for x in store][0]
-
-
-        qs = Movement.objects.select_related().filter(closed_store=store, yr=year)
-        q = qs.values('open_store', 'movement')
-        closed = pd.DataFrame.from_records(q)
-
-        closed = closed.rename(columns={'open_store':'sg_id'})
-        closed.set_index('sg_id', inplace=True)
-        closed = closed.drop(index=store)
-        mv_min = closed['movement'].min()
-        mv_max = closed['movement'].max()
-        mv_range = mv_max-mv_min
-        closed['norm'] = closed['movement'].apply(lambda x: 5+((x - mv_min)*(100-5))/mv_range)
-
-
-        query = Info.objects.filter(sg_id = store)
-
-        center = [(x.lat, x.lon) for x in query][0]
-
-        fig = go.Figure()
-
-        cols = Colors.objects.all()
-        for col in cols:
-
-            color = str(col.hex)
-            brand = str(col.brand)
-
-            qs = Info.objects.filter(name = brand)
-            q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
-            df = pd.DataFrame.from_records(q)
-            closed = closed.rename(columns={'open_store':'sg_id'})
-            df.set_index('sg_id', inplace=True)
-            plot_df = df.join(closed, on='sg_id',how='left')
-            plot_df['movement'] = plot_df['movement'].astype(str)
-            plot_df['sq_ft'] = plot_df['sq_ft'].astype(str)
-            plot_df['p_lot'] = plot_df['p_lot'].astype(str)
-            plot_df.dropna(inplace=True)
-
-            fig.add_trace(go.Scattermapbox(
-                                lat = plot_df.lat,
-                                lon = plot_df.lon,
-                                mode = 'markers',
-                                marker = go.scattermapbox.Marker(
-                                            size=plot_df.norm,
-                                            color=color,
-                                            opacity=0.6
-                                ),
-                                name = brand,
-                                hovertemplate = '<b>'+ brand + '</b><br><br>'
-                                                '<b>Additional Traffic: </b><br>' + plot_df.movement + '<br>' +
-                                                '<b>Address: </b><br>' + plot_df.address + '<br>' +
-                                                '<b>Category: </b><br>' + plot_df.category + '<br>' +
-                                                '<b>Square Footage: </b><br>' + plot_df.sq_ft + '<br>' +
-                                                '<b>Has Parking Lot: </b><br>' + plot_df.p_lot + '<br>' +
-                                                "<extra></extra>"
-
-
-                            ))
-
-        qs = Info.objects.select_related().filter(sg_id=store)
-        q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
-        ct_info = pd.DataFrame.from_records(q)
-        ct_info['sq_ft'] = ct_info['sq_ft'].astype(str)
-        ct_info['p_lot'] = ct_info['p_lot'].astype(str)
-
-        fig.add_trace(go.Scattermapbox(
-                            lat = [center[0]],
-                            lon = [center[1]],
-                            mode = 'markers',
-                            marker=go.scattermapbox.Marker(
-                                        size = 10,
-                                        color = '#000000',
-                                        opacity = 1
-                            ),
-                            name = 'Target '+store_name+' **closed**',
-                            hovertemplate = '<b>Target '+store_name+' **closed**</b><br><br>'
-                                            '<b>Address: </b><br>' + ct_info.address + '<br>' +
-                                            '<b>Category: </b><br>' + ct_info.category + '<br>' +
-                                            '<b>Square Footage: </b><br>' + ct_info.sq_ft + '<br>' +
-                                            '<b>Has Parking Lot: </b><br>' + ct_info.p_lot + '<br>' +
-                                            "<extra></extra>"
-        ))
-
-        fig.update_layout(
-            autosize=False,
-            hovermode='closest',
-            showlegend=False,
-            margin=dict(
-                l=0,
-                r=0,
-                t=30,
-                b=20),
-            mapbox=dict(
-                accesstoken=mapbox_access_token,
-                bearing=0,
-                center=dict(
-                    lat=center[0],
-                    lon=center[1]),
-                pitch=60,
-                zoom=10),
-            title = "Resulting Movement After Closing Store " + store_name,
-            height=500,
-            width=500
-        )
-
-
-        qs = Info.objects.exclude(sg_id=store)
-        q = qs.values('sg_id','name','address','lat','lon','category','sq_ft','p_lot')
-        df = pd.DataFrame.from_records(q)
-        df.set_index('sg_id', inplace=True)
-
-        tdf = df.join(closed)
-        top_tdf = tdf.sort_values(by='movement', ascending=False).head(5)
-        table_dicts.append([{'brand':top_tdf.loc[i,'name'],
-                        'address':top_tdf.loc[i,'address'],
-                        'sq_ft':top_tdf.loc[i,'sq_ft'],
-                        'move':round(top_tdf.loc[i,'movement'])} for i in list(top_tdf.index)])
-
-
-        plot_divs.append(plot(fig, output_type='div', include_plotlyjs=False))
-
-
-    ###############################
-    ##  Generate plot from input ##
-    ###############################
-
-    if request.method == 'POST':
-        form = forms.YearSelect(request.POST)
-
-        if form.is_valid():
-
-            ###############################
-            ##   Bubble plot of movement ##
-            ###############################
-            for store in ['T07','T11','T06']:
-
-                year = form.cleaned_data['year']
-                store = Closed.objects.filter(name=store)
-                store_name = [str(x.name) for x in store][0]
-                store = [str(x.id) for x in store][0]
-
-
-                qs = Movement.objects.select_related().filter(closed_store=store, yr=year)
-                q = qs.values('open_store', 'movement')
-                closed = pd.DataFrame.from_records(q)
-
-                closed = closed.rename(columns={'open_store':'sg_id'})
-                closed.set_index('sg_id', inplace=True)
-                closed = closed.drop(index=store)
-                mv_min = closed['movement'].min()
-                mv_max = closed['movement'].max()
-                mv_range = mv_max-mv_min
-                closed['norm'] = closed['movement'].apply(lambda x: 5+((x - mv_min)*(100-5))/mv_range)
-
-
-                query = Info.objects.filter(sg_id = store)
-
-                center = [(x.lat, x.lon) for x in query][0]
-
-                fig = go.Figure()
-
-                cols = Colors.objects.all()
-                for col in cols:
-
-                    color = str(col.hex)
-                    brand = str(col.brand)
-
-                    qs = Info.objects.filter(name = brand)
-                    q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
-                    df = pd.DataFrame.from_records(q)
-                    closed = closed.rename(columns={'open_store':'sg_id'})
-                    df.set_index('sg_id', inplace=True)
-                    plot_df = df.join(closed, on='sg_id',how='left')
-                    plot_df['movement'] = plot_df['movement'].astype(str)
-                    plot_df['sq_ft'] = plot_df['sq_ft'].astype(str)
-                    plot_df['p_lot'] = plot_df['p_lot'].astype(str)
-                    plot_df.dropna(inplace=True)
-
-                    fig.add_trace(go.Scattermapbox(
-                                        lat = plot_df.lat,
-                                        lon = plot_df.lon,
-                                        mode = 'markers',
-                                        marker = go.scattermapbox.Marker(
-                                                    size=plot_df.norm,
-                                                    color=color,
-                                                    opacity=0.6
-                                        ),
-                                        name = brand,
-                                        hovertemplate = '<b>'+ brand + '</b><br><br>'
-                                                        '<b>Additional Traffic: </b><br>' + plot_df.movement + '<br>' +
-                                                        '<b>Address: </b><br>' + plot_df.address + '<br>' +
-                                                        '<b>Category: </b><br>' + plot_df.category + '<br>' +
-                                                        '<b>Square Footage: </b><br>' + plot_df.sq_ft + '<br>' +
-                                                        '<b>Has Parking Lot: </b><br>' + plot_df.p_lot + '<br>' +
-                                                        "<extra></extra>"
-
-
-                                    ))
-
-                qs = Info.objects.select_related().filter(sg_id=store)
-                q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
-                ct_info = pd.DataFrame.from_records(q)
-                ct_info['sq_ft'] = ct_info['sq_ft'].astype(str)
-                ct_info['p_lot'] = ct_info['p_lot'].astype(str)
-
-                fig.add_trace(go.Scattermapbox(
-                                    lat = [center[0]],
-                                    lon = [center[1]],
-                                    mode = 'markers',
-                                    marker=go.scattermapbox.Marker(
-                                                size = 10,
-                                                color = '#000000',
-                                                opacity = 1
-                                    ),
-                                    name = 'Target '+store_name+' **closed**',
-                                    hovertemplate = '<b>Target '+store_name+' **closed**</b><br><br>'
-                                                    '<b>Address: </b><br>' + ct_info.address + '<br>' +
-                                                    '<b>Category: </b><br>' + ct_info.category + '<br>' +
-                                                    '<b>Square Footage: </b><br>' + ct_info.sq_ft + '<br>' +
-                                                    '<b>Has Parking Lot: </b><br>' + ct_info.p_lot + '<br>' +
-                                                    "<extra></extra>"
-                ))
-
-                fig.update_layout(
-                    autosize=False,
-                    hovermode='closest',
-                    mapbox=dict(
-                        accesstoken=mapbox_access_token,
-                        bearing=0,
-                        center=dict(
-                            lat=center[0],
-                            lon=center[1]),
-                        pitch=60,
-                        zoom=12),
-                    title = "Resulting Movement After Closing Store " + store_name,
-                    height=800,
-                    width=1200
-                )
-
-                plot_div = plot(fig, output_type='div', include_plotlyjs=False)
-
-            qs = Info.objects.exclude(sg_id=store)
-            q = qs.values('sg_id','name','address','lat','lon','category','sq_ft','p_lot')
-            df = pd.DataFrame.from_records(q)
-            df.set_index('sg_id', inplace=True)
-
-            tdf = df.join(closed)
-            top_tdf = tdf.sort_values(by='movement', ascending=False).head(5)
-            table_dicts.append([{'brand':top_tdf.loc[i,'name'],
-                            'address':top_tdf.loc[i,'address'],
-                            'sq_ft':top_tdf.loc[i,'sq_ft'],
-                            'move':round(top_tdf.loc[i,'movement'],2)} for i in list(top_tdf.index)])
-
-
-
-
-
-    return render(request, 'sc_app/topStores.html', context={'form':form,
-                                                            'store_plot1':plot_divs[0],
-                                                            'store_plot2':plot_divs[1],
-                                                            'store_plot3':plot_divs[2],
-                                                            'tbl1':table_dicts[0],
-                                                            'tbl2':table_dicts[1],
-                                                            'tbl3':table_dicts[2],
-                                                            'store1':'T07',
-                                                            'store2':'T11',
-                                                            'store3':'T06',})
-
-
-
-
+# ###############################
+# ##     TOPSTORES VIEW        ##
+# ###############################
+#
+#
+# def topStores(request):
+#     form = forms.YearSelect()
+#
+#     ###############################
+#     ##    Generate base plot     ##
+#     ###############################
+#     mapbox_access_token = get_mb_token()
+#     MB_style = 'mapbox://styles/mapbox/streets-v11'
+#     plot_divs = []
+#     table_dicts = []
+#
+#     for store in ['T07','T06','T11']:
+#         year = 2018
+#         store = Closed.objects.filter(name=store)
+#         store_name = [str(x.name) for x in store][0]
+#         store = [str(x.id) for x in store][0]
+#
+#
+#         qs = Movement.objects.select_related().filter(closed_store=store, yr=year)
+#         q = qs.values('open_store', 'movement')
+#         closed = pd.DataFrame.from_records(q)
+#
+#         closed = closed.rename(columns={'open_store':'sg_id'})
+#         closed.set_index('sg_id', inplace=True)
+#         closed = closed.drop(index=store)
+#         mv_min = closed['movement'].min()
+#         mv_max = closed['movement'].max()
+#         mv_range = mv_max-mv_min
+#         closed['norm'] = closed['movement'].apply(lambda x: 5+((x - mv_min)*(100-5))/mv_range)
+#
+#
+#         query = Info.objects.filter(sg_id = store)
+#
+#         center = [(x.lat, x.lon) for x in query][0]
+#
+#         fig = go.Figure()
+#
+#         cols = Colors.objects.all()
+#         for col in cols:
+#
+#             color = str(col.hex)
+#             brand = str(col.brand)
+#
+#             qs = Info.objects.filter(name = brand)
+#             q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
+#             df = pd.DataFrame.from_records(q)
+#             closed = closed.rename(columns={'open_store':'sg_id'})
+#             df.set_index('sg_id', inplace=True)
+#             plot_df = df.join(closed, on='sg_id',how='left')
+#             plot_df['movement'] = plot_df['movement'].astype(str)
+#             plot_df['sq_ft'] = plot_df['sq_ft'].astype(str)
+#             plot_df['p_lot'] = plot_df['p_lot'].astype(str)
+#             plot_df.dropna(inplace=True)
+#
+#             fig.add_trace(go.Scattermapbox(
+#                                 lat = plot_df.lat,
+#                                 lon = plot_df.lon,
+#                                 mode = 'markers',
+#                                 marker = go.scattermapbox.Marker(
+#                                             size=plot_df.norm,
+#                                             color=color,
+#                                             opacity=0.6
+#                                 ),
+#                                 name = brand,
+#                                 hovertemplate = '<b>'+ brand + '</b><br><br>'
+#                                                 '<b>Additional Traffic: </b><br>' + plot_df.movement + '<br>' +
+#                                                 '<b>Address: </b><br>' + plot_df.address + '<br>' +
+#                                                 '<b>Category: </b><br>' + plot_df.category + '<br>' +
+#                                                 '<b>Square Footage: </b><br>' + plot_df.sq_ft + '<br>' +
+#                                                 '<b>Has Parking Lot: </b><br>' + plot_df.p_lot + '<br>' +
+#                                                 "<extra></extra>"
+#
+#
+#                             ))
+#
+#         qs = Info.objects.select_related().filter(sg_id=store)
+#         q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
+#         ct_info = pd.DataFrame.from_records(q)
+#         ct_info['sq_ft'] = ct_info['sq_ft'].astype(str)
+#         ct_info['p_lot'] = ct_info['p_lot'].astype(str)
+#
+#         fig.add_trace(go.Scattermapbox(
+#                             lat = [center[0]],
+#                             lon = [center[1]],
+#                             mode = 'markers',
+#                             marker=go.scattermapbox.Marker(
+#                                         size = 10,
+#                                         color = '#000000',
+#                                         opacity = 1
+#                             ),
+#                             name = 'Target '+store_name+' **closed**',
+#                             hovertemplate = '<b>Target '+store_name+' **closed**</b><br><br>'
+#                                             '<b>Address: </b><br>' + ct_info.address + '<br>' +
+#                                             '<b>Category: </b><br>' + ct_info.category + '<br>' +
+#                                             '<b>Square Footage: </b><br>' + ct_info.sq_ft + '<br>' +
+#                                             '<b>Has Parking Lot: </b><br>' + ct_info.p_lot + '<br>' +
+#                                             "<extra></extra>"
+#         ))
+#
+#         fig.update_layout(
+#             autosize=False,
+#             hovermode='closest',
+#             showlegend=False,
+#             margin=dict(
+#                 l=0,
+#                 r=0,
+#                 t=30,
+#                 b=20),
+#             mapbox=dict(
+#                 accesstoken=mapbox_access_token,
+#                 bearing=0,
+#                 center=dict(
+#                     lat=center[0],
+#                     lon=center[1]),
+#                 pitch=60,
+#                 zoom=10),
+#             title = "Resulting Movement After Closing Store " + store_name,
+#             height=500,
+#             width=500
+#         )
+#
+#
+#         qs = Info.objects.exclude(sg_id=store)
+#         q = qs.values('sg_id','name','address','lat','lon','category','sq_ft','p_lot')
+#         df = pd.DataFrame.from_records(q)
+#         df.set_index('sg_id', inplace=True)
+#
+#         tdf = df.join(closed)
+#         top_tdf = tdf.sort_values(by='movement', ascending=False).head(5)
+#         table_dicts.append([{'brand':top_tdf.loc[i,'name'],
+#                         'address':top_tdf.loc[i,'address'],
+#                         'sq_ft':top_tdf.loc[i,'sq_ft'],
+#                         'move':round(top_tdf.loc[i,'movement'])} for i in list(top_tdf.index)])
+#
+#
+#         plot_divs.append(plot(fig, output_type='div', include_plotlyjs=False))
+#
+#
+#     ###############################
+#     ##  Generate plot from input ##
+#     ###############################
+#
+#     if request.method == 'POST':
+#         form = forms.YearSelect(request.POST)
+#
+#         if form.is_valid():
+#
+#             ###############################
+#             ##   Bubble plot of movement ##
+#             ###############################
+#             for store in ['T07','T11','T06']:
+#
+#                 year = form.cleaned_data['year']
+#                 store = Closed.objects.filter(name=store)
+#                 store_name = [str(x.name) for x in store][0]
+#                 store = [str(x.id) for x in store][0]
+#
+#
+#                 qs = Movement.objects.select_related().filter(closed_store=store, yr=year)
+#                 q = qs.values('open_store', 'movement')
+#                 closed = pd.DataFrame.from_records(q)
+#
+#                 closed = closed.rename(columns={'open_store':'sg_id'})
+#                 closed.set_index('sg_id', inplace=True)
+#                 closed = closed.drop(index=store)
+#                 mv_min = closed['movement'].min()
+#                 mv_max = closed['movement'].max()
+#                 mv_range = mv_max-mv_min
+#                 closed['norm'] = closed['movement'].apply(lambda x: 5+((x - mv_min)*(100-5))/mv_range)
+#
+#
+#                 query = Info.objects.filter(sg_id = store)
+#
+#                 center = [(x.lat, x.lon) for x in query][0]
+#
+#                 fig = go.Figure()
+#
+#                 cols = Colors.objects.all()
+#                 for col in cols:
+#
+#                     color = str(col.hex)
+#                     brand = str(col.brand)
+#
+#                     qs = Info.objects.filter(name = brand)
+#                     q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
+#                     df = pd.DataFrame.from_records(q)
+#                     closed = closed.rename(columns={'open_store':'sg_id'})
+#                     df.set_index('sg_id', inplace=True)
+#                     plot_df = df.join(closed, on='sg_id',how='left')
+#                     plot_df['movement'] = plot_df['movement'].astype(str)
+#                     plot_df['sq_ft'] = plot_df['sq_ft'].astype(str)
+#                     plot_df['p_lot'] = plot_df['p_lot'].astype(str)
+#                     plot_df.dropna(inplace=True)
+#
+#                     fig.add_trace(go.Scattermapbox(
+#                                         lat = plot_df.lat,
+#                                         lon = plot_df.lon,
+#                                         mode = 'markers',
+#                                         marker = go.scattermapbox.Marker(
+#                                                     size=plot_df.norm,
+#                                                     color=color,
+#                                                     opacity=0.6
+#                                         ),
+#                                         name = brand,
+#                                         hovertemplate = '<b>'+ brand + '</b><br><br>'
+#                                                         '<b>Additional Traffic: </b><br>' + plot_df.movement + '<br>' +
+#                                                         '<b>Address: </b><br>' + plot_df.address + '<br>' +
+#                                                         '<b>Category: </b><br>' + plot_df.category + '<br>' +
+#                                                         '<b>Square Footage: </b><br>' + plot_df.sq_ft + '<br>' +
+#                                                         '<b>Has Parking Lot: </b><br>' + plot_df.p_lot + '<br>' +
+#                                                         "<extra></extra>"
+#
+#
+#                                     ))
+#
+#                 qs = Info.objects.select_related().filter(sg_id=store)
+#                 q = qs.values('sg_id','address','lat','lon','category','sq_ft','p_lot')
+#                 ct_info = pd.DataFrame.from_records(q)
+#                 ct_info['sq_ft'] = ct_info['sq_ft'].astype(str)
+#                 ct_info['p_lot'] = ct_info['p_lot'].astype(str)
+#
+#                 fig.add_trace(go.Scattermapbox(
+#                                     lat = [center[0]],
+#                                     lon = [center[1]],
+#                                     mode = 'markers',
+#                                     marker=go.scattermapbox.Marker(
+#                                                 size = 10,
+#                                                 color = '#000000',
+#                                                 opacity = 1
+#                                     ),
+#                                     name = 'Target '+store_name+' **closed**',
+#                                     hovertemplate = '<b>Target '+store_name+' **closed**</b><br><br>'
+#                                                     '<b>Address: </b><br>' + ct_info.address + '<br>' +
+#                                                     '<b>Category: </b><br>' + ct_info.category + '<br>' +
+#                                                     '<b>Square Footage: </b><br>' + ct_info.sq_ft + '<br>' +
+#                                                     '<b>Has Parking Lot: </b><br>' + ct_info.p_lot + '<br>' +
+#                                                     "<extra></extra>"
+#                 ))
+#
+#                 fig.update_layout(
+#                     autosize=False,
+#                     hovermode='closest',
+#                     mapbox=dict(
+#                         accesstoken=mapbox_access_token,
+#                         bearing=0,
+#                         center=dict(
+#                             lat=center[0],
+#                             lon=center[1]),
+#                         pitch=60,
+#                         zoom=12),
+#                     title = "Resulting Movement After Closing Store " + store_name,
+#                     height=800,
+#                     width=1200
+#                 )
+#
+#                 plot_div = plot(fig, output_type='div', include_plotlyjs=False)
+#
+#             qs = Info.objects.exclude(sg_id=store)
+#             q = qs.values('sg_id','name','address','lat','lon','category','sq_ft','p_lot')
+#             df = pd.DataFrame.from_records(q)
+#             df.set_index('sg_id', inplace=True)
+#
+#             tdf = df.join(closed)
+#             top_tdf = tdf.sort_values(by='movement', ascending=False).head(5)
+#             table_dicts.append([{'brand':top_tdf.loc[i,'name'],
+#                             'address':top_tdf.loc[i,'address'],
+#                             'sq_ft':top_tdf.loc[i,'sq_ft'],
+#                             'move':round(top_tdf.loc[i,'movement'],2)} for i in list(top_tdf.index)])
+#
+#
+#
+#
+#
+#     return render(request, 'sc_app/topStores.html', context={'form':form,
+#                                                             'store_plot1':plot_divs[0],
+#                                                             'store_plot2':plot_divs[1],
+#                                                             'store_plot3':plot_divs[2],
+#                                                             'tbl1':table_dicts[0],
+#                                                             'tbl2':table_dicts[1],
+#                                                             'tbl3':table_dicts[2],
+#                                                             'store1':'T07',
+#                                                             'store2':'T11',
+#                                                             'store3':'T06',})
+#
+#
+#
+#
 
 
 
@@ -604,8 +604,6 @@ def data(request):
                 closed['norm'] = closed['movement'].apply(lambda x: 5+((x - mv_min)*(100-5))/mv_range)
 
 
-                mapbox_access_token = open("static/.mapbox_token").read()
-                MB_style = 'mapbox://styles/mapbox/streets-v11'
                 fig = go.Figure()
 
                 cols = Colors.objects.all()
@@ -677,7 +675,7 @@ def data(request):
                         zoom=10),
                     title = "<b>Resulting Movement After Closing Store " + store_name + "</b>",
                     height=800,
-                    width=600,
+                    width=800,
                     margin = {'t':30,'r':0,'l':0,'b':30}
                 )
 
@@ -700,7 +698,7 @@ def data(request):
                     top5stores = pd.DataFrame.from_records(query.fetchall()).head(5)
                     top5stores.rename(columns={0:'safegraph_place_id', 1:'address',2:'area_square_feet',3:'includes_parking_lot',4:'category',5:'brands',6:'movement'}, inplace=True)
 
-                top5stores['txt'] = ['Competitor 1','Competitor 2','Competitor 3','Competitor 4','Competitor 5']
+                top5stores['txt'] = ['Benefactor 1','Benefactor 2','Benefactor 3','Benefactor 4','Benefactor 5']
 
 
                 with connection.cursor() as cursor:
@@ -896,7 +894,7 @@ def data(request):
                             zoom=11),
                         title=dict(text="<b>Number of Visits per CBG in " + str(year) + "</b>"),
                         height=800,
-                        width=600,
+                        width=800,
                         margin = {'t':30,'r':0,'l':0,'b':0}
                 )
                 config = {'displayModeBar':False}
@@ -925,7 +923,7 @@ def data(request):
                     top5stores.rename(columns={0:'safegraph_place_id', 1:'address',2:'area_square_feet',3:'includes_parking_lot',4:'category',5:'brands',6:'movement'}, inplace=True)
 
                 top5stores['txt'] = ['Competitor 1','Competitor 2','Competitor 3','Competitor 4','Competitor 5']
-                print(top5stores.columns)
+
 
                 qs = CbgStore.objects.filter(year=year, storeID=store)
                 top5cbg = qs.order_by('-number_visits')\
@@ -1078,18 +1076,3 @@ def paper(request):
 
 def people(request):
     return render(request, 'sc_app/people.html')
-
-
-###############################
-##        TEST VIEW          ##
-###############################
-
-def test(request):
-    qs = CbgStore.objects.filter(storeID="sg:e2543bebe82742a1941c21660d9f4168").filter(num_visit_18__gt=0)
-    print(qs)
-    q = qs.values()
-    df = pd.DataFrame.from_records(q)
-    print(df.head())
-
-
-    return render(request, 'sc_app/data3.html')

@@ -1,16 +1,26 @@
 <!DOCTYPE html>
 {% extends 'sc_app/base_fw.html' %}
-
+{% load static %}
 {% block head_block %}
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
 {% endblock %}
 
 {% block body_block %}
+<h2>Data Explorer</h2>
+<p style='text-indent: 50px;margin-left: 20px;margin-right: 20px;'>Use the form below to explore the data and the results
+from the reverse Huff Gravity Model form
+each of the Target locations. The <strong>Foot Traffic</strong> data will display the models predictions
+of patron movement after closing the selected store. The bar graphs on the right display factors about the
+top five benefactors that contribute to the model's prediction. The five stores that receive the most additional Traffic
+are listed in the table at the bottom. The <strong>Census Block</strong> data displays the amount of
+patronization to the selected store from each CBG.  The bar graphs on the right display factors that contribute to
+the model's prediction from the five census block groups that visit the store the most.</p>
+  <hr class='featurette-divider'>
   <div class='row md-12'>
     <form method="POST">
-      {{ form }}
+      <strong>{{ form }}</strong>
       {% csrf_token %}
       <input type="submit" class="btn btn-primary" value="Submit">
     </form>
@@ -18,7 +28,7 @@
   <hr class='featurette-divider'>
   {% if input %}
   <div class='row md-12'>
-    <div class='col-6'>
+    <div class='col-8'>
       {{ map_plot|safe }}
     </div>
     <div class='col-4'>
@@ -30,10 +40,10 @@
       {{ targets_plot|safe }}
   </div>
   <div class="row md-12">
-    <div class='col md-6'>
+    <div class='col md-8'>
         {{ comp_plot|safe }}
     </div>
-    <div class='col md-6'>
+    <div class='col md-4'>
         {{ choro_plot|safe }}
     </div>
   </div>
@@ -46,7 +56,7 @@
       <div class='table-reponsive'>
         <table class="table table-striped">
           <thead>
-            <th scope="col">Brand</th>
+            <th scope="col">Chain</th>
             <th scope="col">Category</th>
             <th scope="col">Address</th>
             <th scope="col">Square Footage</th>
